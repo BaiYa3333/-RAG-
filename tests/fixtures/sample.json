@@ -1,0 +1,7 @@
+[
+  {"id": 1, "name": "张三", "age": 25, "address": {"city": "北京", "district": "朝阳"}},
+  {"id": 2, "name": "李四", "age": 30, "address": {"city": "上海", "district": "浦东"}},
+  {"id": 3, "name": "王五", "age": 28, "address": {"city": "广州", "district": "天河"}},
+  {"id": 4, "name": "赵六", "age": 35, "address": {"city": "深圳", "district": "南山"}},
+  {"id": 5, "name": "孙七", "age": 22, "address": {"city": "杭州", "district": "西湖"}}
+]

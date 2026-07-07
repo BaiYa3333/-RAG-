@@ -1,0 +1,89 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Demo docs (generated files, keep directory structure)
+data/demo_docs/*.md
+data/demo_docs/*.pdf
+data/demo_docs/*.txt
+data/demo_docs/policies/*
+!data/demo_docs/policies/.gitkeep
+data/demo_docs/manuals/*
+!data/demo_docs/manuals/.gitkeep
+data/demo_docs/technical/*
+!data/demo_docs/technical/.gitkeep
+
+# BM25 index data
+data/db/bm25/
+
+# Docker volumes
+docker/pg_data/
+docker/chroma_data/
+docker/redis_data/
+
+# ChromaDB runtime data
+chroma_data/
+
+# Claude Code IDE
+.claude/
+
+# OpenSpec planning documents
+openspec/
+
+# Temporary scripts and evaluation artifacts
+scripts/
+
+# Runtime data (BM25 indexes, SQLite, demo docs)
+data/
+
+# Docker secrets (use .env.example instead)
+docker/.env
+
+# Root-level markdown docs (keep only README.md)
+GRAPH_CODE_ANALYSIS.md
+GRAPH.md
+LLM.md
+RAG.md
+STORES.md
+INTERVIEW_PREP.md
+RESUME.md
+
+# Root-level temp scripts
+.test_token
+generate_resume.ps1
+generate_resume.py
+run_eval_final.py
+run_evaluation_v2.py
+temp_resume.docx
+
+# Test documents (PDFs, fixtures)
+test_docs/
+tests/e2e/
+tests/fixtures/sample.csv
+tests/fixtures/sample.epub
+tests/fixtures/sample.pptx
+tests/fixtures/sample.xlsx
+
+# OS
+.DS_Store
+Thumbs.db

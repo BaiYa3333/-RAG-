@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Environment
+.env
+.env.example
+
+# Git
+.git/
+.gitignore
+
+# Docker (keep entrypoint.sh & compose accessible)
+docker/pg_data/
+docker/chroma_data/
+docker/redis_data/
+!docker/entrypoint.sh
+!docker/init.sql
+
+# IDE
+.vscode/
+.idea/
+
+# Tests
+tests/
+htmlcov/
+.coverage
+
+# Scripts (dev/eval tools)
+scripts/
+
+# Docs
+*.md
+openspec/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db

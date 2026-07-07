@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>企业知识库 · 登录</title>
+<style>
+/* ═══════════════════════════════════════════
+   CSS Variables (match main app)
+   ═══════════════════════════════════════════ */
+:root {
+  --primary: #4B5563;
+  --primary-hover: #374151;
+  --primary-light: #F3F4F6;
+  --primary-gradient: linear-gradient(135deg, #4B5563 0%, #6B7280 52%, #374151 100%);
+  --bg: #F1F4F9;
+  --surface: rgba(255,255,255,0.92);
+  --text: #1E293B;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  --border: rgba(107,114,128,0.16);
+  --error: #DC2626;
+  --error-bg: #FEF2F2;
+  --success: #059669;
+  --shadow-sm: 0 4px 12px rgba(0,0,0,0.06);
+  --shadow: 0 14px 32px rgba(0,0,0,0.08), 0 3px 10px rgba(15,23,42,0.06);
+  --shadow-md: 0 20px 45px rgba(0,0,0,0.10), 0 8px 18px rgba(15,23,42,0.08);
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { height: 100%; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(107,114,128,0.06) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(156,163,175,0.04) 0%, transparent 50%),
+    radial-gradient(circle, rgba(107,114,128,0.03) 1px, transparent 1px),
+    var(--bg);
+  background-size: 100% 100%, 100% 100%, 24px 24px;
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  /* 初始隐藏，等待 token 检查完成后显示，避免闪烁 */
+  visibility: hidden;
+}
+
+/* ═══════════════════════════════════════════
+   Card
+   ═══════════════════════════════════════════ */
+.login-container {
+  width: 100%;
+  max-width: 440px;
+}
+
+.login-card {
+  background: #FFF;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+/* Header / Logo */
+.login-header {
+  background: var(--primary-gradient);
+  padding: 28px 24px 22px;
+  text-align: center;
+  color: #FFF;
+}
+.login-header .logo {
+  font-size: 40px;
+  margin-bottom: 6px;
+}
+.login-header h1 {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.login-header p {
+  font-size: 12px;
+  opacity: 0.82;
+  margin-top: 4px;
+}
+
+/* Tabs */
+.login-tabs {
+  display: flex;
+  border-bottom: 1px solid #E2E8F0;
+}
+.login-tab {
+  flex: 1;
+  padding: 14px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: #F8FAFC;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  position: relative;
+}
+.login-tab:hover { background: #F1F5F9; color: var(--text); }
+.login-tab.active {
+  background: #FFF;
+  color: var(--primary);
+}
+.login-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: var(--primary);
+  border-radius: 1px;
+}
+
+/* Body */
+.login-body {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+.form-group input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s;
+  background: #FAFBFC;
+}
+.form-group input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(107,114,128,0.10);
+  background: #FFF;
+}
+.form-group input.error {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px rgba(220,38,38,0.08);
+}
+
+/* Error / Success messages */
+.form-message {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 14px;
+  display: none;
+}
+.form-message.error {
+  display: block;
+  background: var(--error-bg);
+  color: var(--error);
+  border: 1px solid #FECACA;
+}
+.form-message.success {
+  display: block;
+  background: #ECFDF5;
+  color: var(--success);
+  border: 1px solid #A7F3D0;
+}
+
+/* Submit Button */
+.btn-submit {
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--primary-gradient);
+  color: #FFF;
+  letter-spacing: 0.01em;
+}
+.btn-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(75,85,99,0.40);
+}
+.btn-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Spinner */
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #FFF;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Footer text */
+.login-footer {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Panels (hidden by default) ── */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* Password strength */
+.pw-strength {
+  height: 3px;
+  border-radius: 2px;
+  margin-top: 4px;
+  transition: all 0.3s;
+  background: #E2E8F0;
+}
+.pw-strength.weak   { background: #DC2626; width: 30%; }
+.pw-strength.medium { background: #F59E0B; width: 60%; }
+.pw-strength.strong { background: #059669; width: 100%; }
+
+@media (max-width: 480px) {
+  .login-body { padding: 18px 16px; }
+  .login-header { padding: 22px 16px 18px; }
+}
+
+/* ── Role Toggle ── */
+.role-toggle {
+  display: flex;
+  gap: 6px;
+}
+.role-option {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: var(--radius-sm);
+  background: #FAFBFC;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.role-option:hover {
+  background: #F1F5F9;
+  color: var(--text);
+  border-color: #CBD5E1;
+}
+.role-option.active {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(107,114,128,0.12);
+}
+</style>
+</head>
+<body>
+
+<div class="login-container">
+  <div class="login-card">
+    <!-- Header -->
+    <div class="login-header">
+      <div class="logo">&#x1F916;</div>
+      <h1>企业知识库</h1>
+      <p>智能问答助手 · 请登录后使用</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="login-tabs">
+      <button class="login-tab active" id="tab-login-btn" onclick="switchTab('login')">🔐 登录</button>
+      <button class="login-tab" id="tab-register-btn" onclick="switchTab('register')">📝 注册</button>
+    </div>
+
+    <!-- Body -->
+    <div class="login-body">
+      <div class="form-message" id="form-message"></div>
+
+      <!-- ── Login Panel ── -->
+      <div class="panel active" id="panel-login">
+        <div class="form-group">
+          <label>用户名</label>
+          <input type="text" id="login-username" placeholder="请输入用户名" autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="login-password" placeholder="请输入密码" autocomplete="current-password">
+        </div>
+        <button class="btn-submit" id="btn-login" onclick="doLogin()">
+          <span id="login-spinner" style="display:none;"><span class="spinner"></span></span>
+          登 录
+        </button>
+        <div class="login-footer">还没有账号？<a href="#" onclick="switchTab('register');return false;" style="color:var(--primary);text-decoration:none;font-weight:600;">立即注册</a></div>
+      </div>
+
+      <!-- ── Register Panel ── -->
+      <div class="panel" id="panel-register">
+        <div class="form-group">
+          <label>用户名 <span style="color:var(--text-muted);font-weight:400;">（3-64 个字符）</span></label>
+          <input type="text" id="reg-username" placeholder="设置用户名" autocomplete="username" maxlength="64">
+        </div>
+        <div class="form-group">
+          <label>邮箱 <span style="color:var(--text-muted);font-weight:400;">（可选）</span></label>
+          <input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email" maxlength="255">
+        </div>
+        <div class="form-group">
+          <label>密码 <span style="color:var(--text-muted);font-weight:400;">（最少 8 位）</span></label>
+          <input type="password" id="reg-password" placeholder="设置密码" autocomplete="new-password" maxlength="128" oninput="checkPwStrength()">
+          <div class="pw-strength" id="pw-strength"></div>
+        </div>
+        <div class="form-group">
+          <label>确认密码</label>
+          <input type="password" id="reg-password-confirm" placeholder="再次输入密码" autocomplete="new-password" maxlength="128">
+        </div>
+        <button class="btn-submit" id="btn-register" onclick="doRegister()">
+          <span id="reg-spinner" style="display:none;"><span class="spinner"></span></span>
+          注 册
+        </button>
+        <div class="login-footer">已有账号？<a href="#" onclick="switchTab('login');return false;" style="color:var(--primary);text-decoration:none;font-weight:600;">去登录</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = '';
+
+// ── Tab Switching ──────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.login-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+
+  if (tab === 'login') {
+    document.getElementById('tab-login-btn').classList.add('active');
+    document.getElementById('panel-login').classList.add('active');
+    document.getElementById('login-username').focus();
+  } else {
+    document.getElementById('tab-register-btn').classList.add('active');
+    document.getElementById('panel-register').classList.add('active');
+    document.getElementById('reg-username').focus();
+  }
+  hideMessage();
+}
+
+// ── Messages ──────────────────────────────
+function showMessage(text, type) {
+  var el = document.getElementById('form-message');
+  el.textContent = text;
+  el.className = 'form-message ' + type;
+}
+function hideMessage() {
+  var el = document.getElementById('form-message');
+  el.className = 'form-message';
+  el.textContent = '';
+}
+
+// ── Password Strength ─────────────────────
+function checkPwStrength() {
+  var pw = document.getElementById('reg-password').value;
+  var bar = document.getElementById('pw-strength');
+  bar.className = 'pw-strength';
+  if (pw.length === 0) return;
+  var score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
+  if (/\d/.test(pw)) score++;
+  if (/[^a-zA-Z0-9]/.test(pw)) score++;
+  if (score <= 2) bar.className = 'pw-strength weak';
+  else if (score <= 3) bar.className = 'pw-strength medium';
+  else bar.className = 'pw-strength strong';
+}
+
+// ── Login ─────────────────────────────────
+async function doLogin() {
+  var username = document.getElementById('login-username').value.trim();
+  var password = document.getElementById('login-password').value;
+  var btn = document.getElementById('btn-login');
+  var spinner = document.getElementById('login-spinner');
+
+  if (!username || !password) {
+    showMessage('请输入用户名和密码', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  spinner.style.display = 'inline';
+  hideMessage();
+
+  try {
+    var resp = await fetch(API_BASE + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username, password: password }),
+    });
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || '登录失败');
+
+    // Store token and redirect
+    localStorage.setItem('rag_token', data.access_token);
+    localStorage.setItem('rag_user', JSON.stringify(data.user));
+    window.location.href = '/app';
+  } catch (err) {
+    showMessage(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
+
+// ── Register ──────────────────────────────
+async function doRegister() {
+  var username = document.getElementById('reg-username').value.trim();
+  var email = document.getElementById('reg-email').value.trim();
+  var password = document.getElementById('reg-password').value;
+  var passwordConfirm = document.getElementById('reg-password-confirm').value;
+  var btn = document.getElementById('btn-register');
+  var spinner = document.getElementById('reg-spinner');
+  
+  // Validation
+  if (!username || username.length < 3) {
+    showMessage('用户名至少需要 3 个字符', 'error');
+    return;
+  }
+  if (!password || password.length < 8) {
+    showMessage('密码至少需要 8 个字符', 'error');
+    return;
+  }
+  if (password !== passwordConfirm) {
+    showMessage('两次输入的密码不一致', 'error');
+    return;
+  }
+  btn.disabled = true;
+  spinner.style.display = 'inline';
+  hideMessage();
+
+  try {
+    var body = { username: username, password: password };
+    if (email) body.email = email;
+
+    var resp = await fetch(API_BASE + '/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || '注册失败');
+
+    // Auto-login after registration
+    showMessage('✅ 注册成功！正在登录…', 'success');
+
+    // Login automatically
+    var loginResp = await fetch(API_BASE + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username, password: password }),
+    });
+    var loginData = await loginResp.json();
+    if (!loginResp.ok) throw new Error('自动登录失败，请手动登录');
+
+    localStorage.setItem('rag_token', loginData.access_token);
+    localStorage.setItem('rag_user', JSON.stringify(loginData.user));
+    window.location.href = '/app';
+  } catch (err) {
+    showMessage(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
+
+// ── Keyboard shortcuts ────────────────────
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    var loginPanel = document.getElementById('panel-login');
+    if (loginPanel.classList.contains('active')) {
+      doLogin();
+    } else {
+      doRegister();
+    }
+  }
+});
+
+// ── Init ──────────────────────────────────
+// Check if already logged in
+(function() {
+  var token = localStorage.getItem('rag_token');
+  if (token) {
+    // Verify token is still valid
+    fetch(API_BASE + '/auth/me', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    }).then(function(resp) {
+      if (resp.ok) {
+        window.location.href = '/app';
+        return; // 跳转时保持隐藏，避免闪烁
+      } else {
+        // Token invalid, clear it
+        localStorage.removeItem('rag_token');
+        localStorage.removeItem('rag_user');
+      }
+      document.body.style.visibility = 'visible';
+    }).catch(function() {
+      document.body.style.visibility = 'visible';
+    });
+  } else {
+    document.body.style.visibility = 'visible';
+  }
+  document.getElementById('login-username').focus();
+})();
+</script>
+
+</body>
+</html>
