@@ -125,14 +125,14 @@ class Settings(BaseSettings):
         description="检索召回数量",
     )
     rerank_model: str = Field(
-        default="qwen3-vl-rerank",
+        default="qwen3-rerank",
         alias="RAG_RERANK_MODEL",
-        description="DashScope Rerank 模型名 (gte-rerank 已下线，使用 qwen3-vl-rerank)",
+        description="DashScope Rerank 模型名 (gte-rerank 已下线，迁移至 qwen3-rerank)",
     )
     rerank_api_url: str = Field(
         default="https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank",
         alias="RAG_RERANK_API_URL",
-        description="DashScope Rerank API 端点 (qwen3-vl-rerank 仅支持原生 API)",
+        description="DashScope Rerank API 端点",
     )
     rerank_top_k: int = Field(
         default=8,

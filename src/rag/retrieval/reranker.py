@@ -1,6 +1,6 @@
-"""重排序 — DashScope qwen3-vl-rerank Cross-encoder (fallback → LLM listwise → identity sort).
+"""重排序 — DashScope qwen3-rerank Cross-encoder (fallback → LLM listwise → identity sort).
 
-gte-rerank 已于 2026-05-30 下线，迁移至 qwen3-vl-rerank (多模态 reranker，兼容纯文本)。
+gte-rerank 已于 2026-05-30 下线，迁移至 qwen3-rerank (专用文本 reranker)。
 API 格式: query 需包装为 {"text": "..."}, documents 需包装为 [{"text": "..."}, ...]。
 
 关键词增强: 对 Cross-encoder 分数做关键词匹配加权，提升产品名/实体名等
@@ -67,7 +67,7 @@ async def rerank(
     top_k: int | None = None,
     model_name: str | None = None,
 ) -> list[dict]:
-    """Cross-encoder 重排序 via DashScope Rerank API (qwen3-vl-rerank).
+    """Cross-encoder 重排序 via DashScope Rerank API (qwen3-rerank).
 
     Args:
         query: 查询文本
@@ -84,7 +84,7 @@ async def rerank(
 
     k = top_k or settings.rerank_top_k
 
-    # 提取文档文本，包装为 qwen3-vl-rerank 多模态格式
+    # 提取文档文本，包装为 DashScope Rerank API 格式
     doc_dicts = [{"text": d.get("content", "")} for d in documents]
 
     try:
@@ -135,7 +135,7 @@ async def rerank(
             doc = {**documents[idx], "rerank_score": round(blended[idx], 6), "_rerank_method": "api"}
             reranked.append(doc)
 
-        logger.info("[rerank] qwen3-vl-rerank + keyword boost 完成: %d docs → top %d",
+        logger.info("[rerank] qwen3-rerank + keyword boost 完成: %d docs → top %d",
                     len(documents), len(reranked))
         langfuse_context.update_current_observation(
             rerank_method="api",

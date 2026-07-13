@@ -1,4 +1,4 @@
-"""Rerank 节点 — Cross-encoder 重排序 (DashScope gte-rerank)."""
+"""Rerank 节点 — Cross-encoder 重排序 (DashScope qwen3-rerank)."""
 
 import logging
 

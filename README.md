@@ -25,7 +25,7 @@ Web框架:    FastAPI + Uvicorn (ASGI)
 工作流:     LangGraph 1.0 (StateGraph)
 LLM:        DeepSeek Chat / Qwen 3.6 Plus
 Embedding:  DashScope text-embedding-v4
-Rerank:     DashScope qwen3-vl-rerank
+Rerank:     DashScope qwen3-rerank
 容器化:     Docker Compose (7 服务)
 ```
 
