@@ -25,7 +25,7 @@ class TestBM25Persistence:
         ]
 
     def test_save_and_load_roundtrip(self, temp_dir, sample_docs):
-        """保存后加载应恢复文档、BM25Okapi 对象和所有统计信息."""
+        """保存后加载应恢复文档、倒排索引、IDF 和所有统计信息."""
         from src.rag.retrieval.sparse import SparseRetriever, _index_path
 
         with patch("src.rag.retrieval.sparse._index_dir", return_value=temp_dir):
@@ -48,8 +48,8 @@ class TestBM25Persistence:
             # 文档已恢复
             assert len(sp2._documents) == len(sample_docs)
             assert sp2._documents[0]["content"] == sample_docs[0]["content"]
-            # BM25Okapi 对象已重建
-            assert sp2._bm25 is not None
+            # 倒排索引已重建
+            assert len(sp2._inverted_index) > 0
             # 可以直接检索（无需再调用 build_index）
             results = sp2.search("微服务架构", top_k=2)
             assert len(results) > 0
@@ -171,8 +171,8 @@ class TestBM25Persistence:
             # 应成功从磁盘懒加载并正常检索
             assert len(results) > 0
             assert any("微服务" in r["content"] for r in results)
-            # 确认 _bm25 已重建
-            assert sp2._bm25 is not None
+            # 确认倒排索引已重建
+            assert len(sp2._inverted_index) > 0
             # 确认标记为已从磁盘加载
             assert sp2._loaded_from_disk is True
 
@@ -195,7 +195,7 @@ class TestBM25Persistence:
 
             # 第二次调用：不应静默返回 []
             r2 = sp2.search("BM25", top_k=2)
-            assert len(r2) > 0, "第二次 search 不应返回空（回归：_loaded_from_disk 已为 True 但 _bm25 应存在）"
+            assert len(r2) > 0, "第二次 search 不应返回空（回归：_loaded_from_disk 已为 True 但倒排索引应存在）"
 
             # 第三次调用：同样应有结果
             r3 = sp2.search("RRF", top_k=2)
