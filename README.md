@@ -8,7 +8,7 @@
 |------|------|
 | **多格式文档摄入** | 支持 PDF、Word、Excel、PPT、EPUB、Markdown、HTML、CSV 等 10+ 格式 |
 | **多知识库管理** | 按类别创建独立知识库，支持权限控制（read/write/admin） |
-| **混合检索** | 稠密向量检索（ChromaDB）+ 稀疏关键词检索（BM25/jieba）+ RRF 融合 |
+| **混合检索** | 稠密向量检索（ChromaDB）+ 稀疏关键词检索（自建倒排索引 BM25/jieba）+ RRF 融合 |
 | **智能问答** | 基于 DeepSeek/Qwen 大模型，支持多轮对话、流式 SSE 输出 |
 | **质量管控** | Tier1/Tier2 分层检索 + Quality Gate + Query Expansion (HyDE) |
 | **全链路可观测** | Langfuse 集成（trace、延迟、token 用量、成本估算） |
@@ -198,6 +198,10 @@ RAG_Project/
 │   └── seed_knowledge_base.py   # 旧版种子脚本（默认 KB）
 ├── docker/               # Docker Compose + Dockerfile
 ├── data/
+│   ├── db/               # 运行时数据
+│   │   ├── chroma/       # ChromaDB 向量持久化（bind mount → 容器 /data）
+│   │   ├── bm25/         # BM25 自建倒排索引 JSON 文件
+│   │   └── ingestion_history.db  # 文件摄入去重记录
 │   └── demo_docs/        # 演示文档生成目录
 │       ├── policies/     # 规章制度文档
 │       ├── manuals/      # 产品手册文档
