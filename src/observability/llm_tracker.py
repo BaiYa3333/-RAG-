@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import datetime
 import logging
 import time
 from typing import Any
@@ -76,6 +77,15 @@ def track_llm_call(
         trace_id = langfuse_context.get_current_trace_id()
         parent_observation_id = langfuse_context.get_current_observation_id()
 
+        # Reconstruct the LLM call start time as a UTC datetime for Langfuse.
+        # start_time is time.monotonic() (not wall-clock), so we back-calculate
+        # from the current wall-clock time minus the measured latency.
+        # Without this, generation() defaults start_time=now and gen.end() sets
+        # end_time=now → latency shows as ~0ms in the Langfuse UI.
+        start_dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+            milliseconds=latency_ms
+        )
+
         # Langfuse v2 API: generation() creates a child generation under current span.
         # NOTE: usage_details parameter is broken in Langfuse v2.60.10 — data is silently
         # dropped. Use the deprecated `usage` parameter instead, which works correctly.
@@ -84,6 +94,7 @@ def track_llm_call(
             parent_observation_id=parent_observation_id,
             name=name,
             model=model,
+            start_time=start_dt,
             metadata=meta,
             usage=usage if usage else None,
             level="ERROR" if error else "DEFAULT",

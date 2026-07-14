@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import inspect
 import logging
 from typing import Any, Callable
 
@@ -29,6 +30,12 @@ def trace_rag_node(
 
     当 Langfuse 禁用时，装饰器为透传（零开销）。
     使用 Langfuse v2 @observe() 实现，自动传播 trace context。
+
+    支持三种函数类型：
+    - 普通 async 函数：添加 async_wrapper，await 执行结果
+    - 普通 sync 函数：添加 sync_wrapper，直接调用
+    - async generator：直接透传 observe() 的包装结果
+      （observe() 内部通过 async for 管理 span 生命周期）
 
     Args:
         name: Span 名称，默认使用函数名。
@@ -53,6 +60,13 @@ def trace_rag_node(
                 name=func_name,
                 as_type=as_type,
             )(func)
+
+            # Async generators: observe() internally manages span lifecycle
+            # via `async for` over the generator — start on first iteration,
+            # end on exhaustion.  Our async_wrapper would `await` the generator
+            # (TypeError), so we must return the decorated function directly.
+            if inspect.isasyncgenfunction(func):
+                return decorated
 
             @functools.wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:

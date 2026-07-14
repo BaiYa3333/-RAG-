@@ -256,11 +256,18 @@ async def _llm_rerank(
 
         try:
             llm = create_llm(model_name=model_name)
+            llm_start = time.monotonic()
             resp = await llm.client.chat.completions.create(
                 model=llm.model_id,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.0,
                 max_tokens=512,
+            )
+            track_llm_call(
+                name="rerank_llm_batch",
+                model=llm.model_id,
+                start_time=llm_start,
+                response=resp,
             )
             raw = resp.choices[0].message.content.strip()
 

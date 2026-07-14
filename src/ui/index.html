@@ -631,6 +631,29 @@ body {
   font-size: 11px;
   margin-top: 4px;
 }
+.citation-tooltip .cite-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.citation-tooltip .cite-info:first-child {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--primary);
+  margin-bottom: 2px;
+}
+.citation-ref {
+  font-size: 0.75em;
+  color: var(--cta);
+  cursor: help;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0 2px;
+}
+.citation-ref:hover {
+  color: var(--cta-hover);
+  text-decoration: underline;
+}
 .citation-list {
   margin-top: 12px;
   padding: 10px 14px;
@@ -2125,18 +2148,21 @@ function renderAnswerHtml(text, citations) {
   let html = escapeHtml(cleanedText);
   const citeMap = citations || {};
 
-  // Replace [^N] with clickable superscript references showing source name
+  // ── Render Markdown tables BEFORE citation replacement ──
+  // IMPORTANT: Tables must be rendered before [^N] → <sup> replacement,
+  // otherwise renderTableLines() will escapeHtml() the <sup> attributes
+  // (data-score, onmouseenter, etc.) making them visible text in cells.
+  if (html.includes('|---') || html.includes('| --') || html.includes('| ---')) {
+    html = renderMarkdownTable(html);
+  }
+
+  // Replace [^N] with compact clickable superscript: [N]
+  // Full source details (filename, page, score, snippet) shown on hover + in bottom cite list.
+  // Using just the number keeps tables and inline text clean and readable.
   html = html.replace(/\[\^(\d+)\]/g, function(match, num) {
     if (citeMap[num]) {
       var cite = citeMap[num];
       var sourceName = cite.source || '';
-      var parts = sourceName.split(/[\\/]/);
-      var displayName = parts[parts.length - 1] || sourceName || num;
-      if (displayName.length > 30) {
-        displayName = displayName.slice(0, 27) + '...';
-      }
-      var label = displayName;
-      if (cite.page) label += ', p.' + cite.page;
       return '<sup class="citation-ref" data-ref="' + num + '" ' +
         'data-source="' + escapeHtml(sourceName) + '" ' +
         'data-page="' + escapeHtml(String(cite.page || '')) + '" ' +
@@ -2144,16 +2170,10 @@ function renderAnswerHtml(text, citations) {
         'data-score="' + (cite.score || 0).toFixed(3) + '" ' +
         'onmouseenter="showCitationTooltip(event, this)" ' +
         'onmouseleave="hideCitationTooltip()"' +
-        '>[' + escapeHtml(label) + ']</sup>';
+        '>[' + num + ']</sup>';
     }
     return match;
   });
-
-  // ── Render Markdown tables BEFORE inline formatting ──
-  // (table detection must happen before we touch newlines / pipes)
-  if (html.includes('|---') || html.includes('| --') || html.includes('| ---')) {
-    html = renderMarkdownTable(html);
-  }
 
   // ── Inline Markdown formatting (applied to non-table, non-HTML text) ──
   // Must happen AFTER table rendering to avoid corrupting <table> tags
@@ -2236,17 +2256,32 @@ function renderMarkdownTable(html) {
   var result = [];
   var inTable = false;
   var tableLines = [];
+  var hasSep = false;
 
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i].trim();
     // Table row: starts with | (after trim) — the trailing | is optional
     var isTableLine = line.startsWith('|');
+    var isSep = isTableLine && isTableSeparator(line);
     if (isTableLine) {
       if (!inTable) {
         inTable = true;
         tableLines = [];
+        hasSep = false;
       }
+
+      // Detect consecutive tables with no blank line: a second separator
+      // after data rows means a new table is starting. The line just
+      // before this separator is the new table header.
+      if (isSep && hasSep && tableLines.length >= 2) {
+        var newHeader = tableLines.pop();
+        result.push(renderTableLines(tableLines));
+        tableLines = [newHeader];
+        hasSep = false;
+      }
+
       tableLines.push(line);
+      if (isSep) hasSep = true;
     } else {
       if (inTable) {
         // End of table — render accumulated lines
@@ -2265,10 +2300,15 @@ function renderMarkdownTable(html) {
   return result.join('\n');
 }
 
+// Global counter for guaranteed-unique table IDs (avoids Date.now + Math.random collision)
+var _tableIdCounter = 0;
+
 function renderTableLines(lines) {
   if (lines.length < 2) return lines.join('\n');
-  var tableId = 'table-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
-  var html = '<div class="table-wrapper"><button class="btn-csv-export" data-table-id="' + escapeHtml(tableId) + '" onclick="exportTableToCSV(this.getAttribute(\'data-table-id\'))" title="导出 CSV">📥 CSV</button>';
+  var tableId = 'table-' + Date.now() + '-' + (++_tableIdCounter);
+  // IMPORTANT: data-table-id and table id must match EXACTLY.
+  // tableId only contains [a-z0-9-], so no HTML escaping needed.
+  var html = '<div class="table-wrapper"><button class="btn-csv-export" data-table-id="' + tableId + '" onclick="exportTableToCSV(this.getAttribute(\'data-table-id\'))" title="导出 CSV">📥 CSV</button>';
   html += '<table class="rag-table" id="' + tableId + '">';
 
   // Parse headers from first line
@@ -2425,11 +2465,17 @@ function showCitationTooltip(event, el) {
   var source = el.dataset.source || 'Unknown';
   var page = el.dataset.page || '';
   var snippet = el.dataset.snippet || '';
-  var score = el.dataset.score || '0';
-  tooltip.innerHTML =
-    '<div class="cite-source">📄 ' + escapeHtml(source) + '</div>' +
-    (page ? '<div class="cite-page">📍 第' + escapeHtml(page) + '页 · 相关度: ' + score + '</div>' : '') +
-    (snippet ? '<div class="cite-snippet">' + escapeHtml(snippet) + '…</div>' : '');
+  var score = parseFloat(el.dataset.score || '0');
+  var parts = [];
+  if (source) parts.push('📄 ' + escapeHtml(source));
+  if (page) parts.push('📍 p.' + escapeHtml(page));
+  parts.push('🎯 相关度: ' + score.toFixed(3));
+  tooltip.innerHTML = parts.map(function(p) {
+    return '<div class="cite-info">' + p + '</div>';
+  }).join('');
+  if (snippet) {
+    tooltip.innerHTML += '<div class="cite-snippet">' + escapeHtml(snippet) + '…</div>';
+  }
   document.body.appendChild(tooltip);
   var rect = el.getBoundingClientRect();
   var top = rect.bottom + window.scrollY + 4;
@@ -2866,7 +2912,11 @@ var _csvExportCounter = 0;
 
 function exportTableToCSV(tableId) {
   var table = document.getElementById(tableId);
-  if (!table) return;
+  if (!table) {
+    console.warn('[CSV Export] Table not found:', tableId);
+    showToast('导出失败：找不到表格 (' + tableId + ')', 'error');
+    return;
+  }
 
   // ── Generate unique filename ──
   _csvExportCounter++;
@@ -2890,23 +2940,23 @@ function exportTableToCSV(tableId) {
   var filename = 'rag_table_' + ts + '_' + _csvExportCounter + label + '.csv';
 
   // ── Build CSV with proper escaping ──
+  // Use querySelectorAll scoped to THIS table only (prevents cross-table contamination)
   var rows = Array.from(table.querySelectorAll('tr'));
   var csvRows = [];
   var colCount = 0;
 
   for (var r = 0; r < rows.length; r++) {
     var row = rows[r];
-    var cells = Array.from(row.querySelectorAll('th, td'));
+    // Only select direct th/td (avoid nested table cells)
+    var cells = Array.from(row.querySelectorAll(':scope > th, :scope > td'));
     if (cells.length > colCount) colCount = cells.length;
 
     var csvCells = cells.map(function(cell) {
-      // Use innerText for better whitespace normalization;
-      // replace double-quotes with two double-quotes (CSV standard)
-      // replace newlines with space within cells for cleaner output
-      var text = (cell.innerText || cell.textContent || '').trim();
-      // Remove extra whitespace / line breaks within cell
+      // textContent is more reliable than innerText (no layout dependency)
+      var text = (cell.textContent || cell.innerText || '').trim();
+      // Normalize whitespace: collapse multiple spaces/tabs/newlines into single space
       text = text.replace(/\s+/g, ' ');
-      // CSV escaping: wrap in quotes, double-up internal quotes
+      // CSV escaping: wrap in double-quotes, double-up internal double-quotes
       return '"' + text.replace(/"/g, '""') + '"';
     });
 

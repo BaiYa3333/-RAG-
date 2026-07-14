@@ -84,7 +84,7 @@ services:
     ports:
       - "8001:8000"
     volumes:
-      - chroma_data:/chroma/chroma
+      - ../data/db/chroma:/data
     environment:
       IS_PERSISTENT: "TRUE"
       ANONYMIZED_TELEMETRY: "FALSE"
@@ -143,7 +143,6 @@ services:
 volumes:
   pg_data:
   redis_data:
-  chroma_data:
   langfuse_db_data:
 
 networks:

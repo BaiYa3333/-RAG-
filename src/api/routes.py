@@ -225,20 +225,19 @@ async def chat_stream(req: ChatRequest, request: Request, current_user: dict = D
 
     事件类型: intent | retrieval_chunk | quality_gate | rerank | token | done | error
     当 session_id 存在时，自动加载持久历史并持久化本轮对话。
+
+    trace 追踪：使用 @trace_rag_node(name="api_chat") 装饰内部 async generator，
+    确保 trace 覆盖整个流式请求生命周期（而非仅 chat_stream 函数返回时）。
     """
     graph = getattr(request.app.state, "graph", None)
     memory_service = getattr(request.app.state, "memory_service", None)
-    errors: list[str] = []
     model = _validate_model_name(req.model)
-    streamed_intent = ""
-    streamed_tier = 1
-    streamed_docs_count = 0
 
     # Verify session ownership when session_id is provided
     if req.session_id:
         await _verify_session_ownership(req.session_id, request)
 
-    # Merge persisted history
+    # Merge persisted history (prep-work before the traced generator)
     chat_history = list(req.chat_history or [])
     if req.session_id and memory_service:
         try:
@@ -252,27 +251,35 @@ async def chat_stream(req: ChatRequest, request: Request, current_user: dict = D
         except Exception as e:
             logger.warning("memory_load_failed", session_id=req.session_id, error=str(e))
 
-    streamed_answer = ""
-    streamed_citations = {}
-    streamed_documents: list[dict] = []  # 保存检索到的文档用于解析引用
-
     # Extract user_id from auth context
     stream_user_id = req.user_id or current_user.get("user_id") or "anonymous"
-
-    # Set trace-level metadata for this stream request
-    langfuse_context.update_current_trace(
-        session_id=req.session_id,
-        user_id=stream_user_id,
-        query=req.query,
-        model=model,
-        language=req.language or "zh",
-    )
 
     # Auto-resolve kb_ids when empty (search all accessible KBs)
     resolved_kb_ids = await _resolve_kb_ids(request, req.kb_ids, stream_user_id)
 
+    # ── Traced event generator ──────────────────────────────────
+    # @trace_rag_node wraps the async generator: Langfuse v2 @observe()
+    # starts the span on first __anext__ and ends it when the generator
+    # is exhausted, covering the full streaming lifecycle.
+    @trace_rag_node(name="api_chat")
     async def event_generator():
-        nonlocal streamed_intent, streamed_tier, streamed_docs_count, streamed_answer, streamed_citations, streamed_documents
+        errors: list[str] = []
+        streamed_intent = ""
+        streamed_tier = 1
+        streamed_docs_count = 0
+        streamed_answer = ""
+        streamed_citations: dict = {}
+        streamed_documents: list[dict] = []
+
+        # Set trace-level metadata (now inside the @observe() context)
+        langfuse_context.update_current_trace(
+            session_id=req.session_id,
+            user_id=stream_user_id,
+            query=req.query,
+            model=model,
+            language=req.language or "zh",
+        )
+
         try:
             async for chunk in run_query_stream(
                 query=req.query,
