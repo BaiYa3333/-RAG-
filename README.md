@@ -189,6 +189,7 @@ RAG_Project/
 │   │   └── knowledge_base/  # 知识库 CRUD 服务
 │   ├── graph/            # LangGraph 工作流（意图路由、检索门控、Agent 搜索）
 │   ├── llm/              # LLM 注册中心（多模型管理）
+│   ├── mcp_server/       # MCP Server（stdio + Streamable HTTP 双传输）
 │   ├── stores/           # PostgreSQL / ChromaDB / Redis 连接管理
 │   └── observability/    # Langfuse 追踪集成
 ├── scripts/
@@ -207,6 +208,80 @@ RAG_Project/
 │       ├── manuals/      # 产品手册文档
 │       └── technical/    # 技术文档文档
 └── openspec/             # 项目规范与变更记录
+```
+
+## 🔌 MCP 接入 — 将 RAG 能力暴露给 MCP Host
+
+系统内置 MCP Server（基于官方 `mcp` SDK），将 RAG 能力封装为 3 个工具供任意
+MCP Host（Claude Desktop / Claude Code / Cursor / Cherry Studio 等）消费：
+
+| 工具 | 用途 | 特点 |
+|------|------|------|
+| `list_knowledge_bases` | 发现可检索的知识库（获取有效 kb_ids） | 建议首次调用 |
+| `rag_search` | 仅检索——返回带分数和溯源 metadata 的原始片段 | 秒级、无服务端生成成本 |
+| `rag_query` | 完整 RAG 问答——意图路由 + 分层检索 + 质量门控 + 生成 | 最长 60s、返回带引用答案 |
+
+### 方式一：stdio（本地 Host，推荐）
+
+Host 以子进程拉起，无需启动 FastAPI，但需 Docker 基础服务已运行。
+
+**Claude Code**：项目根目录已提供 `.mcp.json`（project scope，进入项目即自动发现，首次连接需批准）。也可用命令行添加：
+
+```bash
+claude mcp add enterprise-rag -s project -e PYTHONUTF8=1 -- \
+  "C:\Users\DELL\Desktop\RAG_Project\.venv\Scripts\python.exe" -m src.mcp_server
+```
+
+> 注意：stdio 服务进程的工作目录 = 你启动 `claude` 的目录。请**从项目根目录启动**，
+> 否则 `.env` 无法加载（pydantic-settings 按 cwd 相对路径读取）。
+
+**Claude Desktop**（`%APPDATA%\Claude\claude_desktop_config.json`）：
+
+```json
+{
+  "mcpServers": {
+    "enterprise-rag": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "cd /d C:\\Users\\DELL\\Desktop\\RAG_Project && .venv\\Scripts\\python.exe -m src.mcp_server"
+      ],
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    }
+  }
+}
+```
+
+> Claude Desktop **不支持 `cwd` 字段**（会被静默忽略），必须用 `cmd /c "cd /d … && …"`
+> 包装以保证 `.env` 加载与 `-m src.mcp_server` 可导入。修改配置后需完全退出
+> Desktop（托盘图标右键 Exit）再启动。
+> `PYTHONUTF8=1` 必须设置 — Windows GBK 控制台会破坏 stdio JSON-RPC 帧。
+> stdio 模式为本地信任（进程由你自己的 Host 拉起），不要求 API Key。
+
+### 方式二：Streamable HTTP（远程 Host）
+
+挂载在 FastAPI 的 `/mcp` 路径，默认关闭。启用需在 `.env` 配置：
+
+```bash
+RAG_MCP_ENABLED=true
+RAG_MCP_API_KEY=<至少16字符的强密钥>   # 未配置或过短时应用拒绝启动
+RAG_MCP_USER_ID=<可选服务身份>          # 空 = 匿名，仅可见 public 知识库
+```
+
+Host 侧以 `Authorization: Bearer <key>`（或 `X-API-Key`）接入 `http://<host>:8000/mcp`。
+
+**安全须知**：
+- `/mcp` 工具消耗 LLM token，**切勿**无认证裸暴露公网；建议仅内网或反代 TLS 之后
+- MCP 调用以 `RAG_MCP_USER_ID` 服务身份走既有 KB 权限模型（read/write/admin）
+- 工具返回的 chunk metadata 经白名单过滤（source/kb_id/doc_id/chunk_id），内部字段不外流
+
+### 验证
+
+```bash
+# MCP Inspector 交互式验证（stdio）
+npx @modelcontextprotocol/inspector .venv/Scripts/python.exe -m src.mcp_server
 ```
 
 ## 开发

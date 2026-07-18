@@ -159,9 +159,36 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("langfuse_observability_init_failed", error=str(e))
 
+    # ── MCP Session Manager (Streamable HTTP) ───
+    # 挂载本身在模块级完成（见文件底部）；session manager 必须在 lifespan 内运行
+    mcp_session_ctx = None
+    if settings.mcp_enabled:
+        try:
+            from src.mcp_server import service as mcp_service
+            from src.mcp_server.server import mcp as mcp_instance
+
+            # 注入共享 KB 服务，避免 MCP 层自建第二个 DocStore 连接池
+            if app.state.kb_service is not None:
+                mcp_service.set_kb_service(app.state.kb_service)
+
+            mcp_session_ctx = mcp_instance.session_manager.run()
+            await mcp_session_ctx.__aenter__()
+            logger.info("mcp_http_enabled", path="/mcp")
+        except Exception as e:
+            logger.warning("mcp_session_manager_start_failed", error=str(e))
+            mcp_session_ctx = None
+
     logger.info("app_started", host=settings.app_host, port=settings.app_port)
     yield
     # ── Shutdown ─────────────────────────────────
+    # 先停 MCP session manager，避免关闭存储连接时仍有工具调用在途
+    if mcp_session_ctx is not None:
+        try:
+            await mcp_session_ctx.__aexit__(None, None, None)
+            logger.info("mcp_session_manager_stopped")
+        except Exception as e:
+            logger.warning("mcp_session_manager_stop_failed", error=str(e))
+
     # Flush Langfuse trace data before closing connections
     try:
         from src.observability.client import flush_langfuse
@@ -233,6 +260,26 @@ app.include_router(sessions_router)
 app.include_router(auth_router)
 app.include_router(memory_router)
 app.include_router(kb_router)
+
+# ── MCP Streamable HTTP 注册（默认关闭）─────────
+# 以精确 Route("/mcp") 注册 ASGI 守卫（与 FastMCP 内部注册方式一致）。
+# 不用 app.mount：Mount 前缀匹配对不带尾斜杠的 /mcp 会先 307 重定向，
+# API Key 守卫不执行且不跟随重定向的严格 MCP 客户端会失败。
+# config 已保证 enabled 时 key ≥16 字符。
+if settings.mcp_enabled:
+    from starlette.routing import Route
+
+    from src.mcp_server.auth import MCPAPIKeyGuard
+    from src.mcp_server.server import mcp as _mcp_instance
+
+    # streamable_http_app 的内部路由为 /mcp（FastMCP 默认），Route 精确匹配后
+    # 原样透传 scope.path="/mcp"，两者一致，无 /mcp/mcp 双前缀
+    app.router.routes.append(
+        Route(
+            "/mcp",
+            endpoint=MCPAPIKeyGuard(_mcp_instance.streamable_http_app(), settings.mcp_api_key),
+        )
+    )
 
 
 @app.get("/health")

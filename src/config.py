@@ -348,10 +348,51 @@ class Settings(BaseSettings):
         description="自动生成评估测试集的默认数量",
     )
 
+    # ── MCP Server ───────────────────────────────────────────
+    mcp_enabled: bool = Field(
+        default=False,
+        alias="RAG_MCP_ENABLED",
+        description="是否在 FastAPI 挂载 MCP Streamable HTTP /mcp 端点（默认关闭）",
+    )
+    mcp_api_key: str = Field(
+        default="",
+        alias="RAG_MCP_API_KEY",
+        description="MCP HTTP 传输 API Key（mcp_enabled=true 时必须 ≥16 字符）",
+    )
+    mcp_user_id: str = Field(
+        default="",
+        alias="RAG_MCP_USER_ID",
+        description="MCP 工具调用使用的服务身份 user_id（空 = 匿名，仅可见 public KB）",
+    )
+    mcp_default_top_k: int = Field(
+        default=5,
+        alias="RAG_MCP_DEFAULT_TOP_K",
+        description="rag_search 默认返回 chunk 数",
+    )
+    mcp_server_name: str = Field(
+        default="enterprise-rag",
+        alias="RAG_MCP_SERVER_NAME",
+        description="MCP server 名称（Host 侧展示）",
+    )
+
     # ── 服务 ─────────────────────────────────────────────────
     app_host: str = Field(default="0.0.0.0", alias="RAG_APP_HOST")
     app_port: int = Field(default=8000, alias="RAG_APP_PORT")
     log_level: str = Field(default="INFO", alias="RAG_LOG_LEVEL")
+    @model_validator(mode="after")
+    def validate_mcp_security(self) -> "Settings":
+        """MCP HTTP 暴露安全校验 — enabled 时必须配置强 API Key（fail-fast）。
+
+        与生产环境弱 JWT 密钥拒绝策略对齐，但无论 ENV 均生效：
+        /mcp 暴露的工具消耗 LLM token，绝不允许无认证开启。
+        """
+        if self.mcp_enabled and len(self.mcp_api_key) < 16:
+            raise ValueError(
+                "RAG_MCP_ENABLED=true requires RAG_MCP_API_KEY to be set with at "
+                "least 16 characters. Refusing to expose /mcp without authentication."
+            )
+        return self
+
     @model_validator(mode="after")
     def validate_auth_secrets(self) -> "Settings":
         """Validate JWT secret and admin code strength.

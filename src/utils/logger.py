@@ -12,7 +12,7 @@ import structlog
 _configured = False
 
 
-def setup_logger(log_level: str = "INFO") -> structlog.stdlib.BoundLogger:
+def setup_logger(log_level: str = "INFO", stream=None) -> structlog.stdlib.BoundLogger:
     """配置 structlog，返回绑定了日志级别的 logger。
 
     可安全重复调用 — 后续调用会覆盖之前的配置（测试友好）。
@@ -20,6 +20,11 @@ def setup_logger(log_level: str = "INFO") -> structlog.stdlib.BoundLogger:
     渲染器选择基于 ENV 环境变量：
     - ENV=development（默认）→ ConsoleRenderer（彩色控制台输出）
     - ENV=production → JSONRenderer（机器可解析的 JSON 行）
+
+    Args:
+        log_level: 日志级别名。
+        stream: 日志输出流，默认 None（stdout）。MCP stdio 模式必须传
+            sys.stderr — stdout 是 JSON-RPC 通道，日志写入会破坏协议帧。
     """
     global _configured
     level = getattr(logging, log_level.upper(), logging.INFO)
@@ -39,7 +44,7 @@ def setup_logger(log_level: str = "INFO") -> structlog.stdlib.BoundLogger:
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(),
+        logger_factory=structlog.PrintLoggerFactory(file=stream),
         cache_logger_on_first_use=False,
     )
 

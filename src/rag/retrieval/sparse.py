@@ -219,17 +219,13 @@ class SparseRetriever:
             elapsed_ms = (time.monotonic() - t0) * 1000
             file_size = os.path.getsize(target)
             logger.info(
-                "bm25_saved",
-                collection=col,
-                num_docs=len(self._documents),
-                num_terms=len(self._inverted_index),
-                file_size=file_size,
-                elapsed_ms=round(elapsed_ms, 2),
+                "bm25_saved: collection=%s num_docs=%d num_terms=%d file_size=%d elapsed_ms=%.2f",
+                col, len(self._documents), len(self._inverted_index), file_size, elapsed_ms,
             )
             self._file_mtime = os.path.getmtime(target)
             return True
         except Exception as exc:
-            logger.warning("bm25_save_failed", collection=col, error=str(exc))
+            logger.warning("bm25_save_failed: collection=%s error=%s", col, exc)
             if os.path.exists(tmp):
                 try:
                     os.remove(tmp)
@@ -262,7 +258,7 @@ class SparseRetriever:
 
             documents = data.get("documents", [])
             if not documents:
-                logger.warning("bm25_load_empty", collection=col)
+                logger.warning("bm25_load_empty: collection=%s", col)
                 return False
 
             self._documents = documents
@@ -303,16 +299,12 @@ class SparseRetriever:
             file_size = os.path.getsize(path)
             self._file_mtime = os.path.getmtime(path)
             logger.info(
-                "bm25_loaded",
-                collection=col,
-                num_docs=len(self._documents),
-                num_terms=len(self._inverted_index),
-                file_size=file_size,
-                elapsed_ms=round(elapsed_ms, 2),
+                "bm25_loaded: collection=%s num_docs=%d num_terms=%d file_size=%d elapsed_ms=%.2f",
+                col, len(self._documents), len(self._inverted_index), file_size, elapsed_ms,
             )
             return True
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
-            logger.warning("bm25_load_corrupted", collection=col, error=str(exc))
+            logger.warning("bm25_load_corrupted: collection=%s error=%s", col, exc)
             return False
 
     def _try_load_from_disk(self) -> bool:
@@ -375,12 +367,8 @@ class SparseRetriever:
 
         elapsed_ms = (time.monotonic() - t0) * 1000
         logger.info(
-            "bm25_incremental_update",
-            collection=self._collection_name,
-            old_count=old_count,
-            new_count=len(new_docs),
-            total=len(self._documents),
-            elapsed_ms=round(elapsed_ms, 2),
+            "bm25_incremental_update: collection=%s old_count=%d new_count=%d total=%d elapsed_ms=%.2f",
+            self._collection_name, old_count, len(new_docs), len(self._documents), elapsed_ms,
         )
 
         # 更新后自动持久化

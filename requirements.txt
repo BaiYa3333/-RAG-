@@ -65,8 +65,8 @@ python-pptx>=0.6.21
 ebooklib>=0.18
 beautifulsoup4>=4.12.0
 
-# MCP
-mcp>=0.1.0
+# MCP — Streamable HTTP + 结构化输出需要 1.10+；服务端实现见 src/mcp_server/
+mcp>=1.10.0,<2.0
 
 # Testing
 pytest>=7.4.0

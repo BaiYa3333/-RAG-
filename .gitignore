@@ -86,3 +86,6 @@ tests/fixtures/sample.xlsx
 # OS
 .DS_Store
 Thumbs.db
+
+# Virtualenv
+.venv/
