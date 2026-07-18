@@ -100,7 +100,7 @@ class Settings(BaseSettings):
 
     # ── RAG 参数 ─────────────────────────────────────────────
     tier1_score_threshold: float = Field(
-        default=0.35,
+        default=0.7,
         alias="RAG_TIER1_SCORE_THRESHOLD",
         description="Tier1 quality gate 向量相似度阈值（cosine，值域 0~1）",
     )

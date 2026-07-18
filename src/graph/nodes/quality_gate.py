@@ -25,7 +25,7 @@ MIN_DOC_COUNT = 1
 async def check_quality(state: RAGState) -> dict:
     """检查检索质量，按 tier 使用不同阈值判断。
 
-    Tier1：avg cosine similarity > 0.45 AND doc_count >= 1 → pass
+    Tier1：avg cosine similarity >= tier1_score_threshold（默认 0.7）AND doc_count >= 1 → pass
     Tier2：max rrf_score > 0.008 AND doc_count >= 1 → pass
            （Tier2 已是最后手段，有结果就放行）
     """
